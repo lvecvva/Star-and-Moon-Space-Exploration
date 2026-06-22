@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Star & Moon: Sunward</title>
+<style>
+  :root{
+    --bg-deep:#0b0a18;
+    --bg-panel:#1a1730;
+    --cream:#f6ead2;
+    --gold:#e8c468;
+    --lilac:#b9a6e8;
+    --pink:#f0a8c0;
+    --teal:#7fd8c9;
+    --line:#352e54;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(127,216,201,0.16), transparent 24%),
+      radial-gradient(circle at 82% 8%, rgba(240,168,192,0.13), transparent 28%),
+      radial-gradient(ellipse at 50% -10%, #2b244a 0%, #121024 46%, var(--bg-deep) 78%);
+    font-family: 'Courier New', monospace;
+    color:var(--cream);
+    overflow:hidden;
+    user-select:none;
+  }
+  #wrap{
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:center; height:100%; gap:8px;
+    padding:8px;
+  }
+  h1{
+    margin:0; font-size:22px; letter-spacing:3px;
+    color:var(--gold); text-shadow:0 0 8px rgba(232,196,104,0.95), 0 0 22px rgba(240,168,192,0.32);
+  }
+  #subtitle{
+    margin:0 0 2px 0; font-size:11px; color:var(--lilac); letter-spacing:2px;
+  }
+  #hud{
+    display:flex; gap:14px; font-size:11px; color:var(--cream);
+    letter-spacing:1px; align-items:center;
+    flex-wrap:wrap; justify-content:center;
+    padding:6px 12px;
+    background:rgba(10,9,22,0.48);
+    border:1px solid rgba(185,166,232,0.22);
+    border-radius:999px;
+    box-shadow:0 0 18px rgba(127,216,201,0.08);
+  }
+  #hud span{color:var(--teal);}
+  #abilityHud{
+    display:flex; gap:6px; align-items:center; font-size:10px; color:var(--gold);
+  }
+  .abilityChip{
+    border:1px solid var(--line); border-radius:10px; padding:2px 8px;
+    background:rgba(185,166,232,0.08); color:#776fa0;
+    box-shadow:inset 0 0 8px rgba(0,0,0,0.25);
+  }
+  .abilityChip.unlocked{ color:var(--gold); border-color:var(--gold); background:rgba(232,196,104,0.12); box-shadow:0 0 10px rgba(232,196,104,0.16); }
+  .abilityChip.active{ color:#1a1730; background:var(--gold); box-shadow:0 0 14px rgba(232,196,104,0.5); }
+  #panel{
+    position:relative;
+    width:560px; max-width:96vw;
+    filter:drop-shadow(0 24px 40px rgba(0,0,0,0.42));
+  }
+  #gameCanvas{
+    display:block;
+    width:360px;
+    max-width:100%;
+    max-height:calc(100vh - 170px);
+    height:auto;
+    margin:0 auto;
+    image-rendering:pixelated;
+    background:#070711;
+    border:2px solid rgba(185,166,232,0.55);
+    border-radius:8px;
+    box-shadow:
+      0 0 0 4px rgba(15,13,28,0.95),
+      0 0 34px rgba(127,216,201,0.18),
+      inset 0 0 28px rgba(0,0,0,0.45);
+  }
+  #panel::after{
+    content:"";
+    position:absolute; inset:2px;
+    border-radius:6px;
+    pointer-events:none;
+    z-index:2;
+    background:
+      linear-gradient(rgba(255,255,255,0.035) 50%, rgba(0,0,0,0.035) 50%),
+      radial-gradient(ellipse at center, transparent 58%, rgba(5,4,12,0.44) 100%);
+    background-size:100% 4px, 100% 100%;
+    mix-blend-mode:screen;
+  }
+  .screen{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, rgba(25,21,48,0.94), rgba(8,7,17,0.96)),
+      radial-gradient(circle at 50% 0%, rgba(127,216,201,0.14), transparent 38%);
+    border:2px solid rgba(185,166,232,0.45);
+    border-radius:8px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:12px; padding:18px; text-align:center;
+    z-index:5;
+    overflow:auto;
+    box-shadow:inset 0 0 36px rgba(0,0,0,0.55);
+  }
+  .hidden{display:none !important;}
+  .choice-row{display:flex; gap:18px; flex-wrap:wrap; justify-content:center;}
+  .choice-card{
+    width:130px; padding:12px 10px; border:2px solid var(--line);
+    border-radius:8px;
+    background:linear-gradient(180deg, rgba(43,37,78,0.95), rgba(20,17,38,0.95));
+    cursor:pointer;
+    transition:transform .15s, border-color .15s, box-shadow .15s;
+    box-shadow:inset 0 0 18px rgba(0,0,0,0.28), 0 8px 18px rgba(0,0,0,0.22);
+  }
+  .choice-card:hover{ transform:translateY(-4px) scale(1.03); border-color:var(--gold); box-shadow:0 0 24px rgba(232,196,104,0.18), inset 0 0 18px rgba(0,0,0,0.28); }
+  .choice-card canvas{ image-rendering: pixelated; width:96px; height:96px; margin-bottom:6px; filter:drop-shadow(0 8px 8px rgba(0,0,0,0.48)); }
+  .choice-card .name{ font-size:13px; color:var(--gold); letter-spacing:1px; }
+  .choice-card .desc{ font-size:9px; color:var(--lilac); margin-top:4px; line-height:1.4; }
+  button.bigbtn{
+    background:linear-gradient(180deg, #f1d276, var(--gold) 48%, #b98b31);
+    color:#1a1730; border:none; padding:10px 22px; border-radius:20px;
+    font-family:inherit; font-weight:bold; letter-spacing:1px; cursor:pointer;
+    font-size:13px;
+    box-shadow:0 0 18px rgba(232,196,104,0.24), inset 0 1px 0 rgba(255,255,255,0.45);
+  }
+  button.bigbtn:hover{ filter:brightness(1.1); }
+  #controlsNote{font-size:10px; color:#9085b8; letter-spacing:0.5px;}
+  #planetBanner{
+    position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    font-size:11px; color:var(--gold); letter-spacing:2px; text-shadow:0 0 6px rgba(0,0,0,0.8);
+    z-index:3; pointer-events:none;
+  }
+  #abilityToast{
+    position:absolute; top:32px; left:50%; transform:translateX(-50%);
+    font-size:10px; color:var(--teal); letter-spacing:1px; text-shadow:0 0 6px rgba(0,0,0,0.9);
+    z-index:3; pointer-events:none; opacity:0; transition:opacity .3s;
+  }
+  #touchControls{
+    display:none; gap:8px; margin-top:4px;
+  }
+  @media (pointer:coarse){
+    #touchControls{ display:flex; justify-content:space-between; width:100%; }
+  }
+  .tbtn{
+    width:50px; height:50px; border-radius:50%; background:var(--bg-panel);
+    border:2px solid var(--line); color:var(--cream); font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  /* ---- Visual Novel dialogue box ---- */
+  #vnBox{
+    position:absolute; inset:0; z-index:6;
+    background:rgba(8,7,16,0.0);
+    display:flex; flex-direction:column; justify-content:flex-end;
+    pointer-events:none;
+  }
+  #vnStage{
+    flex:1; position:relative; display:flex; align-items:flex-end; justify-content:center;
+    padding-bottom:6px;
+  }
+  .vnPortrait{
+    width:84px; height:84px; image-rendering:pixelated;
+    position:absolute; bottom:64px;
+    filter:drop-shadow(0 6px 10px rgba(0,0,0,0.5));
+    transition:transform .25s ease;
+  }
+  .vnPortrait.left{ left:8%; }
+  .vnPortrait.right{ right:8%; }
+  .vnPortrait.dim{ filter:brightness(0.45) drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
+  #vnTextWrap{
+    pointer-events:auto;
+    margin:0 8px 8px 8px;
+    background:linear-gradient(180deg, rgba(25,22,46,0.95), rgba(10,9,22,0.95));
+    border:2px solid rgba(185,166,232,0.45);
+    border-radius:8px;
+    padding:10px 14px;
+    min-height:64px;
+    display:flex; flex-direction:column; gap:4px;
+    box-shadow:0 0 24px rgba(0,0,0,0.45), inset 0 0 18px rgba(127,216,201,0.06);
+  }
+  #vnName{ font-size:11px; letter-spacing:2px; color:var(--gold); }
+  #vnText{ font-size:12px; line-height:1.5; color:var(--cream); min-height:36px; }
+  #vnNext{ align-self:flex-end; font-size:9px; color:var(--lilac); letter-spacing:1px; cursor:pointer; }
+  #vnNext:hover{ color:var(--gold); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>★ STAR &amp; MOON: SUNWARD ★</h1>
+  <p id="subtitle">a pixel pilgrimage from Pluto to the Sun</p>
+  <div id="hud">
+    <div>SCORE <span id="scoreVal">0</span></div>
+    <div>LIVES <span id="livesVal">9000000</span></div>
+    <div>PLANET <span id="planetVal">1/9</span></div>
+    <div id="abilityHud"></div>
+  </div>
+  <div id="panel">
+    <canvas id="gameCanvas" width="360" height="480"></canvas>
+    <div id="planetBanner"></div>
+    <div id="abilityToast"></div>
+
+    <!-- VN dialogue overlay, shown during cutscenes -->
+    <div id="vnBox" class="hidden">
+      <div id="vnStage">
+        <canvas class="vnPortrait left hidden" id="vnPortraitLeft" width="32" height="32"></canvas>
+        <canvas class="vnPortrait right hidden" id="vnPortraitRight" width="32" height="32"></canvas>
+      </div>
+      <div id="vnTextWrap">
+        <div id="vnName">???</div>
+        <div id="vnText">...</div>
+        <div id="vnNext">▶ continue</div>
+      </div>
+    </div>
+
+    <div id="charSelect" class="screen">
+      <div style="font-size:14px;color:var(--gold);letter-spacing:2px;">CHOOSE YOUR PILOT</div>
+      <div class="choice-row">
+        <div class="choice-card" data-char="star">
+          <canvas class="sprite-prev" data-sprite="star" width="16" height="16"></canvas>
+          <div class="name">STAR ♀</div>
+          <div class="desc">siamese starshot<br>quick &amp; nimble<br>twin paw-blasters</div>
+        </div>
+        <div class="choice-card" data-char="moon">
+          <canvas class="sprite-prev" data-sprite="moon" width="16" height="16"></canvas>
+          <div class="name">MOON ♂</div>
+          <div class="desc">tuxedo nightwalker<br>sturdy &amp; bold<br>heavy moonbeam shot</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--lilac);">+ Big the pomeranian rides along and barks lasers at enemies for you 🐾</div>
+      <div id="controlsNote">Arrow keys / WASD to move · Space to shoot · Shift / Z / X for unlocked abilities · or use on-screen pad</div>
+    </div>
+
+    <div id="planetIntro" class="screen hidden">
+      <div id="planetIntroName" style="font-size:16px; color:var(--gold); letter-spacing:2px;"></div>
+      <div id="planetIntroDesc" style="font-size:11px; color:var(--cream); max-width:420px; line-height:1.6;"></div>
+      <div id="planetIntroAbility" style="font-size:10px; color:var(--teal); letter-spacing:0.5px; max-width:420px;"></div>
+      <button class="bigbtn" id="planetContinueBtn">DIVE IN</button>
+    </div>
+
+    <div id="gameOverScreen" class="screen hidden">
+      <div style="font-size:16px;color:var(--pink);letter-spacing:2px;">SIGNAL LOST...</div>
+      <div style="font-size:12px;">Final Score: <span id="finalScore">0</span></div>
+      <button class="bigbtn" id="retryBtn">TRY AGAIN</button>
+    </div>
+
+    <div id="winScreen" class="screen hidden">
+      <div style="font-size:16px;color:var(--gold);letter-spacing:2px;">★ YOU REACHED THE SUN ★</div>
+      <canvas id="danceCanvas" width="280" height="160" style="image-rendering:pixelated; border:2px solid var(--line); border-radius:6px; background:#3a1f00;"></canvas>
+      <div id="winText" style="font-size:11px; max-width:420px; line-height:1.6;">Star, Moon &amp; Big drifted home, warm and golden, paws full of starlight. The whole solar system is purring.</div>
+      <div style="font-size:12px;">Final Score: <span id="winScore">0</span></div>
+      <button class="bigbtn hidden" id="winRetryBtn">PLAY AGAIN</button>
+    </div>
+  </div>
+  <div id="touchControls">
+    <div class="tbtn" id="tLeft">◀</div>
+    <div class="tbtn" id="tUp">▲</div>
+    <div class="tbtn" id="tDown">▼</div>
+    <div class="tbtn" id="tRight">▶</div>
+    <div class="tbtn" id="tFire">●</div>
+  </div>
+</div>
+
+<script>
+/* ======================= PIXEL ART ======================= */
+// Sprites are drawn onto a 32x32 offscreen canvas using flat-colored blocks,
+// matching the reference pixel-art look, then blitted up with no smoothing.
+
+function px(ctx, gx, gy, gw, gh, color, unit){
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(gx*unit), Math.round(gy*unit), Math.round(gw*unit), Math.round(gh*unit));
+}
+
+// shared siamese-point palette (Star) — matched to reference artwork
+const SP = {
+  out:   '#0c0805',   // near-black outline
+  dark:  '#3a2a21',   // dark seal-brown (ears, mask, tail, sock paws)
+  mid:   '#7a5a45',   // mid brown shading
+  cream: '#dcc4a7',   // head/body cream
+  pale:  '#f3e1ce',   // muzzle/belly pale cream
+  pink:  '#e7a8b8',   // ear inner pink
+  pinkSh:'#c98aa0',   // ear inner shaded pink
+  white: '#ffffff',
+  blue:  '#6fb6ef',
+  pupil: '#15131a',
+  nose:  '#2a201c',
+};
+// tuxedo palette (Moon)
+const MP = {
+  out:   '#0a0a0c',
+  dark:  '#1d1d20',   // black fur
+  mid:   '#36363b',   // soft shaded black
+  white: '#fafafa',
+  whiteSh:'#dcdce0',
+  pink:  '#e7a8b8',
+  pinkSh:'#c98aa0',
+  blue:  '#7fb6e8',
+  pupil: '#15131a',
+  nose:  '#e7a8b8',
+};
+
+// shared helper: stamp a single grid cell
+function cellpx(ctx,gx,gy,color,u){ px(ctx,gx,gy,1,1,color,u); }
+// shared helper: stamp a list of [x,y,colorKey] cells, mirrored left+right (for ears)
+function stampEarsMirrored(ctx, cells, palette, u){
+  cells.forEach(([x,y,key])=>{
+    cellpx(ctx,x,y,palette[key],u);
+    cellpx(ctx,31-x,y,palette[key],u);
+  });
+}
+// Ear shape shared by Star & Moon — triangular, pointed tip, pink/contrast inner, outlined.
+// Defined once on the left side; the right ear is the mirror image.
+const EAR_CELLS = [
+  [11,1,'out'],[12,1,'out'],
+  [10,2,'out'],[11,2,'dark'],[12,2,'dark'],[13,2,'out'],
+  [9,3,'out'],[10,3,'dark'],[11,3,'dark'],[12,3,'dark'],[13,3,'dark'],[14,3,'out'],
+  [8,4,'out'],[9,4,'dark'],[10,4,'pink'],[11,4,'pink'],[12,4,'dark'],[13,4,'dark'],[14,4,'dark'],[15,4,'out'],
+  [7,5,'out'],[8,5,'dark'],[9,5,'pink'],[10,5,'pink'],[11,5,'pinkSh'],[12,5,'dark'],[13,5,'dark'],[14,5,'dark'],[15,5,'dark'],[16,5,'out'],
+  [7,6,'out'],[8,6,'dark'],[9,6,'pinkSh'],[10,6,'pinkSh'],[11,6,'dark'],[12,6,'dark'],[13,6,'dark'],[14,6,'dark'],[15,6,'dark'],[16,6,'out'],
+  [7,7,'out'],[8,7,'dark'],[9,7,'dark'],[10,7,'dark'],[11,7,'dark'],[12,7,'dark'],[13,7,'dark'],[14,7,'dark'],[15,7,'dark'],[16,7,'out'],
+  [7,8,'out'],[8,8,'out'],[9,8,'out'],[10,8,'out'],[11,8,'out'],[12,8,'out'],[13,8,'out'],[14,8,'out'],[15,8,'out'],[16,8,'out'],
+];
+// Eyes shared shape (mirrored) — big white almond, blue iris, dark pupil, sparkle, lash outline.
+function paintEyesAndFace(ctx,u,c){
+  px(ctx,9,13,5,5,c.white,u); px(ctx,18,13,5,5,c.white,u);
+  px(ctx,9,15,5,3,c.blue,u); px(ctx,18,15,5,3,c.blue,u);
+  px(ctx,10,16,2,2,c.pupil,u); px(ctx,19,16,2,2,c.pupil,u);
+  cellpx(ctx,9,13,c.white,u); cellpx(ctx,18,13,c.white,u);
+  px(ctx,8,14,1,3,c.out,u); px(ctx,14,14,1,3,c.out,u);
+  px(ctx,17,14,1,3,c.out,u); px(ctx,23,14,1,3,c.out,u);
+  px(ctx,9,12,5,1,c.out,u); px(ctx,18,12,5,1,c.out,u);
+  // nose + mouth
+  px(ctx,15,19,2,1,c.nose,u);
+  cellpx(ctx,14,20,c.out,u); cellpx(ctx,17,20,c.out,u);
+  px(ctx,15,20,2,1,c.out,u);
+}
+
+// STAR — siamese cat, sitting, round head, big blue eyes, dark seal-point mask, curled tail.
+// Grid carefully matched to the reference image (32x32).
+function paintStar(ctx, size){
+  const u = size/32; ctx.clearRect(0,0,size,size);
+  const c = SP;
+  // tail, curling up behind/right of body
+  px(ctx,24,23,3,3,c.dark,u);
+  px(ctx,26,20,3,3,c.dark,u);
+  px(ctx,27,16,3,4,c.dark,u);
+  px(ctx,25,13,3,3,c.dark,u);
+  px(ctx,23,12,2,2,c.mid,u);
+  // sitting body — cream base, pale belly, two-tone front paws
+  px(ctx,7,20,18,7,c.cream,u);
+  px(ctx,7,19,18,2,c.cream,u);
+  px(ctx,9,21,14,5,c.pale,u);
+  px(ctx,8,27,4,3,c.dark,u);
+  px(ctx,12,27,3,3,c.pale,u);
+  px(ctx,17,27,3,3,c.pale,u);
+  px(ctx,20,27,4,3,c.dark,u);
+  // ears (shared triangular shape, mirrored)
+  stampEarsMirrored(ctx, EAR_CELLS, c, u);
+  // head — round cream head, dark seal mask tapering from ears down to nose bridge
+  px(ctx,7,9,18,10,c.cream,u);
+  px(ctx,6,10,2,7,c.out,u); px(ctx,24,10,2,7,c.out,u);
+  px(ctx,8,10,2,2,c.dark,u); px(ctx,22,10,2,2,c.dark,u);
+  px(ctx,13,9,6,2,c.mid,u);
+  px(ctx,14,11,4,5,c.dark,u);
+  px(ctx,13,16,6,2,c.mid,u);
+  px(ctx,10,16,4,3,c.pale,u); px(ctx,18,16,4,3,c.pale,u);
+  px(ctx,12,18,8,2,c.pale,u);
+  paintEyesAndFace(ctx,u,c);
+  // whiskers
+  px(ctx,0,15,5,1,c.cream,u); px(ctx,0,17,4,1,c.cream,u);
+  px(ctx,27,15,5,1,c.cream,u); px(ctx,28,17,4,1,c.cream,u);
+}
+
+// MOON — tuxedo cat, sitting, white blaze/chest, blue eyes, curled tail. Same build as Star.
+function paintMoon(ctx, size){
+  const u = size/32; ctx.clearRect(0,0,size,size);
+  const c = MP;
+  // tail
+  px(ctx,24,23,3,3,c.dark,u);
+  px(ctx,26,20,3,3,c.dark,u);
+  px(ctx,27,16,3,4,c.dark,u);
+  px(ctx,25,13,3,3,c.dark,u);
+  // sitting body — black base + white chest blaze
+  px(ctx,7,20,18,7,c.dark,u);
+  px(ctx,7,19,18,2,c.dark,u);
+  px(ctx,11,21,10,5,c.white,u);
+  px(ctx,8,27,4,3,c.dark,u);
+  px(ctx,12,27,3,3,c.white,u);
+  px(ctx,17,27,3,3,c.white,u);
+  px(ctx,20,27,4,3,c.dark,u);
+  // ears (shared shape, mirrored)
+  stampEarsMirrored(ctx, EAR_CELLS, c, u);
+  // head — black, white blaze stripe forehead -> nose -> chest
+  px(ctx,7,9,18,10,c.dark,u);
+  px(ctx,6,10,2,7,c.out,u); px(ctx,24,10,2,7,c.out,u);
+  px(ctx,14,9,4,9,c.white,u);
+  px(ctx,12,16,8,2,c.white,u);
+  px(ctx,14,9,4,1,c.whiteSh,u);
+  paintEyesAndFace(ctx,u,c);
+  // whiskers
+  px(ctx,0,15,5,1,c.mid,u); px(ctx,0,17,4,1,c.mid,u);
+  px(ctx,27,15,5,1,c.mid,u); px(ctx,28,17,4,1,c.mid,u);
+}
+
+// BIG — fluffy pomeranian, golden/cream, round floof
+function paintBig(ctx, size){
+  const u = size/32;
+  ctx.clearRect(0,0,size,size);
+  px(ctx,3,10,26,16,'#e6a23c',u);
+  px(ctx,5,6,22,8,'#e6a23c',u);
+  px(ctx,7,3,18,6,'#e6a23c',u);
+  px(ctx,4,12,5,5,'#f4cf8c',u); px(ctx,23,12,5,5,'#f4cf8c',u);
+  px(ctx,9,4,4,4,'#f4cf8c',u); px(ctx,19,4,4,4,'#f4cf8c',u);
+  px(ctx,6,1,5,5,'#c97f1f',u); px(ctx,21,1,5,5,'#c97f1f',u);
+  px(ctx,9,12,14,10,'#f6e6c4',u);
+  px(ctx,6,21,20,8,'#fbeed4',u);
+  px(ctx,11,15,3,3,'#3a2a1a',u); px(ctx,18,15,3,3,'#3a2a1a',u);
+  px(ctx,12,15,1,1,'#ffffff',u); px(ctx,19,15,1,1,'#ffffff',u);
+  px(ctx,15,19,2,2,'#1a1410',u);
+  px(ctx,8,27,5,3,'#fbeed4',u); px(ctx,19,27,5,3,'#fbeed4',u);
+}
+
+// ALIEN basic — purple jelly, glowing eye core
+function paintAlien1(ctx,size){
+  const u = size/32;
+  ctx.clearRect(0,0,size,size);
+  px(ctx,8,6,16,16,'#6a4fb0',u);
+  px(ctx,6,10,4,8,'#6a4fb0',u); px(ctx,22,10,4,8,'#6a4fb0',u);
+  px(ctx,10,8,12,10,'#9279d6',u);
+  px(ctx,12,11,3,3,'#caffb0',u); px(ctx,17,11,3,3,'#caffb0',u);
+  px(ctx,13,12,1,1,'#16131a',u); px(ctx,18,12,1,1,'#16131a',u);
+  px(ctx,9,22,4,6,'#6a4fb0',u); px(ctx,19,22,4,6,'#6a4fb0',u);
+}
+
+// ALIEN tougher — bigger, darker, spikier
+function paintAlien2(ctx,size){
+  const u = size/32;
+  ctx.clearRect(0,0,size,size);
+  px(ctx,6,5,20,18,'#4a3a7a',u);
+  px(ctx,3,9,4,10,'#4a3a7a',u); px(ctx,25,9,4,10,'#4a3a7a',u);
+  px(ctx,9,8,14,12,'#6a4fb0',u);
+  px(ctx,11,11,4,4,'#caffb0',u); px(ctx,17,11,4,4,'#caffb0',u);
+  px(ctx,12,12,2,2,'#16131a',u); px(ctx,18,12,2,2,'#16131a',u);
+  px(ctx,7,23,5,7,'#4a3a7a',u); px(ctx,20,23,5,7,'#4a3a7a',u);
+  px(ctx,12,3,2,3,'#caffb0',u); px(ctx,18,3,2,3,'#caffb0',u);
+}
+
+// ALIEN MOTHERSHIP (Mercury boss)
+function paintMothership(ctx,size){
+  const u = size/32;
+  ctx.clearRect(0,0,size,size);
+  px(ctx,2,12,28,10,'#3a2f5e',u);
+  px(ctx,6,8,20,6,'#4a3a7a',u);
+  px(ctx,10,4,12,6,'#6a4fb0',u);
+  px(ctx,4,22,24,4,'#2a2348',u);
+  px(ctx,8,13,4,4,'#caffb0',u); px(ctx,14,13,4,4,'#f6d27a',u); px(ctx,20,13,4,4,'#caffb0',u);
+  px(ctx,2,16,3,3,'#9279d6',u); px(ctx,27,16,3,3,'#9279d6',u);
+}
+
+const PAINTERS = { star: paintStar, moon: paintMoon, big: paintBig, alien1: paintAlien1, alien2: paintAlien2, mothership: paintMothership };
+
+// Star & Moon are loaded from hand-drawn PNGs sitting next to this HTML file
+// (star.png / moon.png). If they're missing or still loading, we fall back to
+// the procedural pixel-art painters above so the game never breaks.
+const IMAGE_SPRITES = { star: 'star.png', moon: 'moon.png' };
+const loadedImages = {};
+const imageReady = {};
+Object.keys(IMAGE_SPRITES).forEach(key=>{
+  const img = new Image();
+  imageReady[key] = false;
+  img.onload = ()=>{ imageReady[key] = true; spriteCache[key] = null; refreshAllSpritePreviews(); };
+  img.onerror = ()=>{ imageReady[key] = false; }; // keep using procedural fallback
+  img.src = IMAGE_SPRITES[key];
+  loadedImages[key] = img;
+});
+
+const spriteCache = {};
+function getSpriteCanvas(key){
+  // real artwork takes priority once it's loaded
+  if(IMAGE_SPRITES[key] && imageReady[key]){
+    if(spriteCache[key]) return spriteCache[key];
+    const off = document.createElement('canvas');
+    off.width = 32; off.height = 32;
+    const octx = off.getContext('2d');
+    octx.imageSmoothingEnabled = false;
+    octx.clearRect(0,0,32,32);
+    octx.drawImage(loadedImages[key], 0, 0, 32, 32);
+    spriteCache[key] = off;
+    return off;
+  }
+  if(spriteCache[key]) return spriteCache[key];
+  const off = document.createElement('canvas');
+  off.width = 32; off.height = 32;
+  const octx = off.getContext('2d');
+  octx.imageSmoothingEnabled = false;
+  PAINTERS[key](octx, 32);
+  spriteCache[key] = off;
+  return off;
+}
+
+function drawSprite(ctx, key, size, sizeH){
+  const off = getSpriteCanvas(key);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, 32, 32, 0, 0, size, sizeH||size);
+}
+
+// Once an image finishes loading after the UI was already drawn (character
+// select thumbnails, etc.), refresh anything already on screen that used it.
+function refreshAllSpritePreviews(){
+  document.querySelectorAll('.sprite-prev').forEach(cv=>{
+    const key = cv.dataset.sprite;
+    const sctx = cv.getContext('2d');
+    sctx.clearRect(0,0,cv.width,cv.height);
+    drawSprite(sctx,key,cv.width,cv.height);
+  });
+}
+
+/* ======================= PREVIEW THUMBNAILS ======================= */
+document.querySelectorAll('.sprite-prev').forEach(cv=>{
+  const key = cv.dataset.sprite;
+  cv.width=16; cv.height=16;
+  const ctx = cv.getContext('2d');
+  drawSprite(ctx,key,16);
+});
+
+/* ======================= GAME STATE ======================= */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const W = canvas.width, H = canvas.height;
+
+// Planets: difficulty ramps gently at first, then climbs faster on later worlds.
+// `needKills` stays low early (short, easy waves) and grows; spawn rate/speed scale
+// with a curve that is flat for planets 0-1 then accelerates.
+const PLANETS = [
+  {name:"PLUTO", bg:"#1c2233", accent:"#9fb4d8", needKills:6,
+   desc:"The edge of everything. Ice glints like sugar. Just a few scout-bots to clear before liftoff.",
+   ability:null},
+  {name:"NEPTUNE", bg:"#1b3a6b", accent:"#7fc8e8", needKills:8,
+   desc:"Deep windy blue. Still gentle here — get a feel for your shot.",
+   ability:"twin"},
+  {name:"URANUS", bg:"#2c5c63", accent:"#9be8d8", needKills:10,
+   desc:"Tilted and teal. Diagonal swoopers start showing up.",
+   ability:"dash"},
+  {name:"SATURN", bg:"#5a4a2c", accent:"#e8caa0", needKills:11,
+   desc:"Ringed and golden. Aliens hide in the ring-dust — formations get tighter.",
+   ability:"shield"},
+  {name:"JUPITER", bg:"#6b4a2c", accent:"#e8a85c", needKills:13,
+   desc:"A giant storm-world. The Great Red Spot hides a tougher alien squad.",
+   ability:"spread"},
+  {name:"MARS", bg:"#6b2c20", accent:"#e87f5c", needKills:14,
+   desc:"Rust-red and quiet, until it isn't. Faster aliens, sandy ambushes.",
+   ability:"rapid"},
+  {name:"EARTH", bg:"#1f4a5c", accent:"#7fd8a0", needKills:16,
+   desc:"Home-ish. Be careful — this close to the Sun, things heat up fast.",
+   ability:"bomb"},
+  {name:"VENUS", bg:"#7a5a2c", accent:"#f0d088", needKills:18,
+   desc:"Scorching gold clouds. The alien fleet is desperate now — it's relentless.",
+   ability:"overdrive"},
+  {name:"MERCURY", bg:"#4a4a52", accent:"#d8d8e0", needKills:1,
+   desc:"Final outpost before the Sun. The Mothership itself blocks the way.",
+   ability:null, boss:true},
+];
+
+const PLANET_VISUALS = [
+  {glow:"#b9c9f0", haze:"#425579", band:"#eff6ff", nebula:"#664b8b"},
+  {glow:"#7fc8e8", haze:"#18458a", band:"#b5eeff", nebula:"#245ca8"},
+  {glow:"#9be8d8", haze:"#1f6b68", band:"#d8fff4", nebula:"#248f96"},
+  {glow:"#e8caa0", haze:"#806733", band:"#fff0bf", nebula:"#8a6f34", rings:true},
+  {glow:"#e8a85c", haze:"#8b5932", band:"#ffd0a0", nebula:"#9a4c36", storm:true},
+  {glow:"#e87f5c", haze:"#843727", band:"#ffc0a3", nebula:"#9c3328"},
+  {glow:"#7fd8a0", haze:"#1c617c", band:"#bafbd1", nebula:"#24619e", aurora:true},
+  {glow:"#f0d088", haze:"#9d7333", band:"#fff0b0", nebula:"#a85f37"},
+  {glow:"#d8d8e0", haze:"#6e6e7a", band:"#ffffff", nebula:"#8f8175", sunward:true},
+];
+
+// Ability metadata for HUD chips + unlock toasts
+const ABILITIES = {
+  twin:      {label:"TWIN SHOT",  toast:"Twin Shot unlocked — your blasters fire in pairs now!"},
+  dash:      {label:"DASH",       toast:"Dash unlocked — hold Shift to burst sideways through fire!"},
+  shield:    {label:"SHIELD",     toast:"Barrier Purr unlocked — press Z for a brief shield!"},
+  spread:    {label:"SPREAD",     toast:"Spread Shot unlocked — fire arcs out in three!"},
+  rapid:     {label:"RAPID FIRE", toast:"Rapid Fire unlocked — your cooldown is much shorter now!"},
+  bomb:      {label:"NOVA BOMB",  toast:"Nova Bomb unlocked — press X to clear the screen!"},
+  overdrive: {label:"OVERDRIVE",  toast:"Overdrive unlocked — hold Z to supercharge every shot!"},
+};
+const ABILITY_ORDER = ['twin','dash','shield','spread','rapid','bomb','overdrive'];
+
+let state = "select"; // select, vn, planetIntro, playing, gameover, win, dance
+let chosenChar = "star";
+let score = 0, lives = 3;
+let planetIdx = 0;
+let kills = 0;
+let frame = 0;
+let unlocked = {}; // ability key -> true
+let abilityCooldowns = { shield:0, bomb:0 };
+let shieldTimer = 0;
+let dashTimer = 0, dashCooldown = 0;
+let overdriveOn = false;
+
+let player, big, bullets=[], enemyBullets=[], enemies=[], particles=[], stars=[], dust=[];
+let boss = null;
+const keys = {};
+
+for(let i=0;i<70;i++){
+  stars.push({
+    x:Math.random()*W, y:Math.random()*H,
+    s:Math.random()*1.5+0.35,
+    sp:Math.random()*0.55+0.18,
+    tw:Math.random()*Math.PI*2,
+    layer:Math.random()
+  });
+}
+for(let i=0;i<18;i++){
+  dust.push({
+    x:Math.random()*W, y:Math.random()*H,
+    r:18+Math.random()*46,
+    sp:0.04+Math.random()*0.12,
+    a:0.018+Math.random()*0.035
+  });
+}
+
+function resetRun(){
+  score = 0; lives = 3; planetIdx = 0; kills = 0;
+  unlocked = {}; shieldTimer=0; dashTimer=0; dashCooldown=0; overdriveOn=false;
+  abilityCooldowns = { shield:0, bomb:0 };
+  setupPlanet();
+  refreshAbilityHud();
+}
+
+function setupPlanet(){
+  kills = 0;
+  player = { x: W/2-8, y: H-60, w:16, h:16, speed:2.6, cooldown:0, hitTimer:0 };
+  big = { x: W/2+22, y:H-44, w:16, h:16, cooldown: 70, phase: Math.random()*Math.PI*2 };
+  bullets = [];
+  enemyBullets = [];
+  enemies = [];
+  particles = [];
+  spawnTimer = 0;
+  boss = null;
+}
+
+let spawnTimer = 0;
+
+/* ---- Difficulty curve ----
+   Planets 0-1: gentle (slow spawns, slow enemies, few tough ones).
+   Planets 2-4: ramping steadily.
+   Planets 5-7: noticeably harder, faster, denser.
+   Planet 8: boss only. */
+function difficultyFactor(){
+  // 0 at planet0, climbs faster after planet 3
+  const i = planetIdx;
+  if(i<=1) return i*0.4;
+  return 0.8 + (i-1)*0.55;
+}
+
+function spawnEnemy(){
+  const d = difficultyFactor();
+  const toughChance = Math.min(0.08 + d*0.06, 0.55);
+  const tough = Math.random() < toughChance;
+  const e = {
+    x: Math.random()*(W-20)+4,
+    y: -20,
+    w:16, h:16,
+    vy: 0.42 + d*0.13 + (tough?0.12:0),
+    vx: (Math.random()-0.5)*0.8,
+    hp: tough?3:1,
+    tough,
+    shootCooldown: Math.random()*140+90 - d*4,
+    wobble: Math.random()*Math.PI*2,
+  };
+  enemies.push(e);
+}
+
+function spawnBoss(){
+  boss = {
+    x: W/2-32, y: -80, w:64, h:48, hp: 70, maxHp:70,
+    phase: 0, shootCooldown: 60, entering:true,
+  };
+}
+
+/* ======================= ABILITY UNLOCK / HUD ======================= */
+function refreshAbilityHud(){
+  const hud = document.getElementById('abilityHud');
+  hud.innerHTML = '';
+  ABILITY_ORDER.forEach(key=>{
+    const chip = document.createElement('div');
+    chip.className = 'abilityChip' + (unlocked[key] ? ' unlocked' : '');
+    chip.textContent = ABILITIES[key].label;
+    chip.id = 'chip_'+key;
+    hud.appendChild(chip);
+  });
+}
+
+function unlockAbility(key){
+  if(!key || unlocked[key]) return;
+  unlocked[key] = true;
+  refreshAbilityHud();
+  showAbilityToast(ABILITIES[key].toast);
+}
+
+let toastTimer = 0;
+function showAbilityToast(msg){
+  const el = document.getElementById('abilityToast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  toastTimer = 210;
+}
+
+/* ======================= VN DIALOGUE ENGINE ======================= */
+// A simple sequential script player. Each line: {speaker:'star'|'moon'|'big'|null, side:'left'|'right', text, dim:[]}
+let vnQueue = [];
+let vnIndex = 0;
+let vnOnDone = null;
+
+function vnPortraitCanvas(side){
+  return document.getElementById(side==='left' ? 'vnPortraitLeft' : 'vnPortraitRight');
+}
+
+function playVN(lines, onDone, returnState){
+  vnQueue = lines;
+  vnIndex = 0;
+  vnOnDone = onDone;
+  vnReturnState = returnState || null;
+  document.getElementById('vnBox').classList.remove('hidden');
+  state = 'vn';
+  showVNLine();
+}
+
+let vnReturnState = null;
+function showVNLine(){
+  if(vnIndex >= vnQueue.length){
+    document.getElementById('vnBox').classList.add('hidden');
+    document.getElementById('vnPortraitLeft').classList.add('hidden');
+    document.getElementById('vnPortraitRight').classList.add('hidden');
+    if(vnReturnState) state = vnReturnState;
+    const cb = vnOnDone; vnOnDone = null;
+    if(cb) cb();
+    return;
+  }
+  const line = vnQueue[vnIndex];
+  const nameMap = { star:'STAR', moon:'MOON', big:'BIG', alien:'???' };
+  document.getElementById('vnName').textContent = line.speaker ? nameMap[line.speaker] || '' : '';
+  document.getElementById('vnText').textContent = line.text;
+
+  const leftC = document.getElementById('vnPortraitLeft');
+  const rightC = document.getElementById('vnPortraitRight');
+  // figure out which portraits should be visible this line, based on the scene's cast
+  const cast = line.cast || [line.leftChar, line.rightChar].filter(Boolean);
+  leftC.classList.toggle('hidden', !cast.includes(line.leftChar));
+  rightC.classList.toggle('hidden', !cast.includes(line.rightChar));
+  if(line.leftChar){
+    const lctx = leftC.getContext('2d'); lctx.clearRect(0,0,32,32);
+    drawSprite(lctx, line.leftChar, 32);
+    leftC.classList.toggle('dim', line.speaker !== line.leftChar);
+  }
+  if(line.rightChar){
+    const rctx = rightC.getContext('2d'); rctx.clearRect(0,0,32,32);
+    drawSprite(rctx, line.rightChar, 32);
+    rightC.classList.toggle('dim', line.speaker !== line.rightChar);
+  }
+}
+
+function vnAdvance(){
+  if(state !== 'vn') return;
+  vnIndex++;
+  showVNLine();
+}
+document.getElementById('vnNext').addEventListener('click', vnAdvance);
+document.getElementById('vnTextWrap').addEventListener('click', vnAdvance);
+
+/* ---- Story scripts ---- */
+function introScript(){
+  const me = chosenChar, other = chosenChar==='star' ? 'moon' : 'star';
+  const lines = [
+    {speaker:other, leftChar:other, rightChar:me, text: other==='star'
+      ? "Ow— okay. Okay! We're down. Everybody still got tails?"
+      : "...we're down. Everyone in one piece?"},
+    {speaker:me, leftChar:other, rightChar:me, text: me==='star'
+      ? "Define 'down.' I think we left a streak across half of Pluto."
+      : "I'm fine. Big's fine. The ship, on the other hand—"},
+    {speaker:'big', leftChar:other, rightChar:me, text:"(Big lets out one small, slightly betrayed bark at the smoking engine.)"},
+    {speaker:me, leftChar:other, rightChar:me, text: me==='star'
+      ? "Yeah. Same, Big. Same."
+      : "She's not wrong to be upset about it."},
+    {speaker:other, leftChar:other, rightChar:me, text:"Look — out there. That warm light past the dark. That's the Sun. That's home."},
+    {speaker:me, leftChar:other, rightChar:me, text:"And between here and there: a whole fleet of somethings that absolutely were not invited."},
+    {speaker:other, leftChar:other, rightChar:me, text:"Then we go planet by planet. Together. Big up front, you've got the speed, I've got the bite. We'll figure the rest out as we go."},
+    {speaker:me, leftChar:other, rightChar:me, text: me==='star'
+      ? "Planet by planet it is. Let's go scare some aliens."
+      : "Alright. Sunward, then. Stay close."},
+  ];
+  return lines;
+}
+
+// short narrative beat before select planets, keyed by planet index (1-based after the one just cleared)
+function planetTransitionScript(idx){
+  const me = chosenChar, other = chosenChar==='star' ? 'moon' : 'star';
+  const beats = {
+    1: [ {speaker:other, leftChar:other, rightChar:me, text:"Neptune's all wind and static. Keep your ears up."},
+         {speaker:me, leftChar:other, rightChar:me, text:"Mine are always up. It's a cat thing."} ],
+    2: [ {speaker:me, leftChar:other, rightChar:me, text:"Uranus is tilted sideways. So are my nerves, a little."},
+         {speaker:'big', leftChar:other, rightChar:me, text:"(Big tilts her whole head to match the horizon, unbothered.)"} ],
+    3: [ {speaker:other, leftChar:other, rightChar:me, text:"Saturn's rings ahead — gorgeous, and absolutely full of hiding spots."},
+         {speaker:me, leftChar:other, rightChar:me, text:"Noted. Trust nothing sparkly."} ],
+    4: [ {speaker:me, leftChar:other, rightChar:me, text:"Jupiter's storm looks like it's been arguing with itself for centuries."},
+         {speaker:other, leftChar:other, rightChar:me, text:"The Red Spot's the worst of it. Stay tight to me through that part."} ],
+    5: [ {speaker:other, leftChar:other, rightChar:me, text:"Mars. Quiet now. Won't stay that way."},
+         {speaker:me, leftChar:other, rightChar:me, text:"It's never quiet for long with us around."} ],
+    6: [ {speaker:me, leftChar:other, rightChar:me, text:"...is that Earth? It's so close. We could almost—"},
+         {speaker:other, leftChar:other, rightChar:me, text:"Almost. Sun first. Home will still be there after."} ],
+    7: [ {speaker:other, leftChar:other, rightChar:me, text:"Venus's gold clouds are gorgeous and trying to kill us, which tracks."},
+         {speaker:me, leftChar:other, rightChar:me, text:"Everything beautiful out here has a temper. Noted, again."} ],
+    8: [ {speaker:me, leftChar:other, rightChar:me, text:"Mercury. Last stop. I can feel the Sun's warmth from here already."},
+         {speaker:other, leftChar:other, rightChar:me, text:"The Mothership's waiting. Let's send it home and finish this — together."} ],
+  };
+  return beats[idx] || null;
+}
+
+function danceScript(){
+  const me = chosenChar, other = chosenChar==='star' ? 'moon' : 'star';
+  return [
+    {speaker:other, leftChar:other, rightChar:me, text:"We... we made it. Look at that. We're standing in sunlight."},
+    {speaker:me, leftChar:other, rightChar:me, text:"After all that, I just want to sit in it for about a hundred years."},
+    {speaker:'big', leftChar:other, rightChar:me, text:"(Big spins a happy circle, then flops dramatically into a sunbeam.)"},
+    {speaker:other, leftChar:other, rightChar:me, text:"...come dance with me first. Just once. We earned it."},
+    {speaker:me, leftChar:other, rightChar:me, text:"...yeah. Yeah, okay. Just once."},
+  ];
+}
+
+/* ======================= SCREEN FLOW ======================= */
+document.querySelectorAll('.choice-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    chosenChar = card.dataset.char;
+    document.getElementById('charSelect').classList.add('hidden');
+    resetRun();
+    playVN(introScript(), ()=>{ showPlanetIntro(); });
+  });
+});
+
+function showPlanetIntro(){
+  state = "planetIntro";
+  const p = PLANETS[planetIdx];
+  document.getElementById('planetIntroName').textContent = `PLANET ${planetIdx+1} / ${PLANETS.length} — ${p.name}`;
+  document.getElementById('planetIntroDesc').textContent = p.desc;
+  const abilEl = document.getElementById('planetIntroAbility');
+  if(p.ability){
+    abilEl.textContent = `New ability on arrival: ${ABILITIES[p.ability].label}`;
+  } else if(p.boss){
+    abilEl.textContent = `Boss fight — use everything you've got.`;
+  } else {
+    abilEl.textContent = '';
+  }
+  document.getElementById('planetIntro').classList.remove('hidden');
+  document.getElementById('planetBanner').textContent = "";
+}
+
+document.getElementById('planetContinueBtn').addEventListener('click', ()=>{
+  document.getElementById('planetIntro').classList.add('hidden');
+  const p = PLANETS[planetIdx];
+  if(p.ability) unlockAbility(p.ability);
+  if(p.boss) spawnBoss();
+  state = "playing";
+});
+
+document.getElementById('retryBtn').addEventListener('click', ()=>{
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  resetRun();
+  showPlanetIntro();
+});
+document.getElementById('winRetryBtn').addEventListener('click', ()=>{
+  document.getElementById('winScreen').classList.add('hidden');
+  document.getElementById('winRetryBtn').classList.add('hidden');
+  resetRun();
+  showPlanetIntro();
+});
+
+/* ======================= UPDATE ======================= */
+function damagePlayer(){
+  if(shieldTimer>0) return; // shield blocks all damage
+  lives--;
+  player.hitTimer = 90;
+  spawnParticles(player.x+8, player.y+8, '#f0a8c0', 14);
+  if(lives<=0){
+    state = "gameover";
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+  }
+}
+
+function spawnParticles(x,y,col,n=6){
+  for(let i=0;i<n;i++){
+    particles.push({
+      x,y, vx:(Math.random()-0.5)*3, vy:(Math.random()-0.5)*3,
+      life: 20+Math.random()*10, col
+    });
+  }
+}
+
+function fireBomb(){
+  enemies.forEach(e=>{ e.hp=0; score+=e.tough?25:10; kills++; spawnParticles(e.x+8,e.y+8,'#f6d27a',12); });
+  enemyBullets = [];
+  if(boss){ boss.hp -= 18; spawnParticles(boss.x+32, boss.y+24, '#f6d27a', 16); }
+}
+
+function update(){
+  frame++;
+  if(toastTimer>0){ toastTimer--; if(toastTimer<=0) document.getElementById('abilityToast').style.opacity='0'; }
+
+  if(state==='dance'){ updateDance(); return; }
+  if(state !== "playing") return;
+
+  stars.forEach(s=>{ s.y += s.sp; s.tw += 0.035; if(s.y>H){ s.y=0; s.x=Math.random()*W; } });
+  dust.forEach(d=>{ d.y += d.sp; if(d.y-d.r>H){ d.y=-d.r; d.x=Math.random()*W; } });
+
+  // player movement
+  let dx=0, dy=0;
+  if(keys['ArrowLeft']||keys['a']) dx-=1;
+  if(keys['ArrowRight']||keys['d']) dx+=1;
+  if(keys['ArrowUp']||keys['w']) dy-=1;
+  if(keys['ArrowDown']||keys['s']) dy+=1;
+
+  if(dashCooldown>0) dashCooldown--;
+  if(dashTimer>0){
+    dashTimer--;
+    player.x += player.dashDir*7;
+  } else if((keys['Shift']) && unlocked.dash && dashCooldown<=0 && dx!==0){
+    dashTimer = 8; dashCooldown = 70; player.dashDir = dx;
+    spawnParticles(player.x+8, player.y+8, '#7fd8c9', 10);
+  } else if(dx||dy){
+    const len = Math.hypot(dx,dy);
+    player.x += (dx/len)*player.speed;
+    player.y += (dy/len)*player.speed;
+  }
+  player.x = Math.max(4, Math.min(W-20, player.x));
+  player.y = Math.max(H*0.42, Math.min(H-24, player.y));
+  if(player.hitTimer>0) player.hitTimer--;
+
+  if(shieldTimer>0) shieldTimer--;
+  if(abilityCooldowns.shield>0) abilityCooldowns.shield--;
+  if(abilityCooldowns.bomb>0) abilityCooldowns.bomb--;
+
+  if(keys['z'] && unlocked.shield && abilityCooldowns.shield<=0 && shieldTimer<=0){
+    shieldTimer = 75; abilityCooldowns.shield = 320;
+    spawnParticles(player.x+8, player.y+8, '#b9a6e8', 14);
+  }
+  overdriveOn = !!(keys['z'] && unlocked.overdrive);
+  if(keys['x'] && unlocked.bomb && abilityCooldowns.bomb<=0){
+    abilityCooldowns.bomb = 480;
+    fireBomb();
+  }
+  const shieldChip = document.getElementById('chip_shield');
+  if(shieldChip) shieldChip.classList.toggle('active', shieldTimer>0);
+  const overChip = document.getElementById('chip_overdrive');
+  if(overChip) overChip.classList.toggle('active', overdriveOn);
+
+  // big follows player
+  big.phase += 0.08;
+  const targetX = player.x + 22;
+  const targetY = player.y + 6 + Math.sin(big.phase)*3;
+  big.x += (targetX-big.x)*0.08;
+  big.y += (targetY-big.y)*0.08;
+  big.x = Math.min(big.x, W-18);
+
+  // shooting
+  if(player.cooldown>0) player.cooldown--;
+  const firing = keys[' ']||keys['Spacebar']||keys['fire'];
+  if(firing && player.cooldown<=0){
+    let cd = chosenChar==='moon' ? 16 : 11;
+    if(unlocked.rapid) cd = Math.round(cd*0.6);
+    if(overdriveOn) cd = Math.round(cd*0.5);
+    player.cooldown = cd;
+    const dmgMul = overdriveOn ? 2 : 1;
+    const col = overdriveOn ? '#f6d27a' : (chosenChar==='star' ? '#7fd8c9' : '#b9a6e8');
+    const baseDmg = (chosenChar==='moon'?2:1)*dmgMul;
+    if(unlocked.spread){
+      bullets.push({x:player.x+7, y:player.y, vy:-6, vx:-1.6, dmg:baseDmg, w:3,h:6,col});
+      bullets.push({x:player.x+7, y:player.y, vy:-6.4, vx:0, dmg:baseDmg, w:3,h:6,col});
+      bullets.push({x:player.x+7, y:player.y, vy:-6, vx:1.6, dmg:baseDmg, w:3,h:6,col});
+    } else if(chosenChar==='star' || unlocked.twin){
+      bullets.push({x:player.x+3, y:player.y, vy:-6, vx:0, dmg:baseDmg, w:3,h:6,col});
+      bullets.push({x:player.x+11, y:player.y, vy:-6, vx:0, dmg:baseDmg, w:3,h:6,col});
+    } else {
+      bullets.push({x:player.x+6, y:player.y-2, vy:-5.2, vx:0, dmg:baseDmg, w:5,h:9,col});
+    }
+  }
+  big.cooldown--;
+  if(big.cooldown<=0){
+    big.cooldown = 75;
+    bullets.push({x:big.x+6, y:big.y, vy:-5, vx:0, dmg:1, w:4,h:4,col:'#f6d27a', isBig:true});
+  }
+
+  bullets.forEach(b=>{ b.y += b.vy; b.x += (b.vx||0); });
+  bullets = bullets.filter(b=> b.y > -20 && b.x>-10 && b.x<W+10);
+
+  enemyBullets.forEach(b=> { b.y += b.vy; b.x += (b.vx||0); });
+  enemyBullets = enemyBullets.filter(b=> b.y < H+20);
+
+  if(!boss){
+    spawnTimer--;
+    const d = difficultyFactor();
+    if(spawnTimer<=0 && kills < PLANETS[planetIdx].needKills + 40){
+      spawnEnemy();
+      spawnTimer = Math.max(78 - d*9, 20) + Math.random()*26;
+    }
+  }
+
+  enemies.forEach(e=>{
+    e.wobble += 0.05;
+    e.y += e.vy;
+    e.x += Math.sin(e.wobble)*0.6 + e.vx*0.2;
+    e.x = Math.max(0, Math.min(W-16, e.x));
+    e.shootCooldown--;
+    if(e.shootCooldown<=0 && e.y>0 && e.y < H-40){
+      e.shootCooldown = 100 + Math.random()*60 - difficultyFactor()*5;
+      enemyBullets.push({x:e.x+7, y:e.y+14, vy:2.6+difficultyFactor()*0.22, vx:(player.x-e.x)*0.01, w:3,h:6, col: e.tough? '#caffb0':'#9279d6'});
+    }
+  });
+  enemies = enemies.filter(e=> e.y < H+30 && e.hp>0);
+
+  bullets.forEach(b=>{
+    enemies.forEach(e=>{
+      if(b.hit) return;
+      if(b.x < e.x+14 && b.x+b.w > e.x+2 && b.y < e.y+14 && b.y+b.h > e.y+2){
+        b.hit = true; e.hp -= b.dmg;
+        spawnParticles(e.x+8, e.y+8, e.tough?'#caffb0':'#9279d6');
+        if(e.hp<=0){
+          score += e.tough? 25:10;
+          kills++;
+          spawnParticles(e.x+8, e.y+8, '#f6d27a', 10);
+        }
+      }
+    });
+    if(boss && !b.hit){
+      if(b.x < boss.x+boss.w-4 && b.x+b.w > boss.x+4 && b.y < boss.y+boss.h-4 && b.y+b.h > boss.y+4){
+        b.hit = true; boss.hp -= b.dmg;
+        spawnParticles(b.x, b.y, '#caffb0', 6);
+      }
+    }
+  });
+  bullets = bullets.filter(b=>!b.hit);
+
+  if(player.hitTimer<=0){
+    enemyBullets.forEach(b=>{
+      if(b.x < player.x+14 && b.x+b.w > player.x+2 && b.y < player.y+14 && b.y+b.h > player.y+2){
+        b.hit = true; damagePlayer();
+      }
+    });
+    enemies.forEach(e=>{
+      if(e.x < player.x+14 && e.x+14 > player.x+2 && e.y < player.y+14 && e.y+14 > player.y+2){
+        e.hp = 0; damagePlayer();
+      }
+    });
+  }
+  enemyBullets = enemyBullets.filter(b=>!b.hit);
+
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.life--; });
+  particles = particles.filter(p=>p.life>0);
+
+  // boss behavior
+  if(boss){
+    boss.phase += 0.02;
+    if(boss.entering){
+      boss.y += 0.7;
+      if(boss.y >= 30){ boss.y = 30; boss.entering = false; }
+    } else {
+      boss.x = W/2-32 + Math.sin(boss.phase*2)*60;
+      boss.shootCooldown--;
+      if(boss.shootCooldown<=0){
+        boss.shootCooldown = Math.max(34 - planetIdx, 18);
+        for(let i=-1;i<=1;i++){
+          enemyBullets.push({x:boss.x+32+i*14, y:boss.y+44, vy:3.2, vx:i*0.6, w:4,h:8, col:'#caffb0'});
+        }
+      }
+      if(player.hitTimer<=0 && player.x < boss.x+boss.w-4 && player.x+14 > boss.x+4 && player.y < boss.y+boss.h-4 && player.y+14 > boss.y+4){
+        damagePlayer();
+      }
+    }
+    if(boss.hp<=0){
+      spawnParticles(boss.x+32, boss.y+24, '#f6d27a', 40);
+      score += 300;
+      boss = null;
+      kills = PLANETS[planetIdx].needKills; // trigger win path below
+    }
+  }
+
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('livesVal').textContent = lives;
+  document.getElementById('planetVal').textContent = `${planetIdx+1}/${PLANETS.length}`;
+  document.getElementById('planetBanner').textContent = PLANETS[planetIdx].name + (boss? " — MOTHERSHIP" : "");
+
+  if(!boss && kills >= PLANETS[planetIdx].needKills){
+    if(planetIdx >= PLANETS.length-1){
+      startDanceScene();
+    } else {
+      planetIdx++;
+      setupPlanet();
+      const beat = planetTransitionScript(planetIdx);
+      if(beat){
+        playVN(beat, ()=> showPlanetIntro());
+      } else {
+        showPlanetIntro();
+      }
+    }
+  }
+}
+
+/* ======================= ENDING: SUN DANCE SCENE ======================= */
+let dance = null;
+function startDanceScene(){
+  document.getElementById('winScore').textContent = score;
+  document.getElementById('winScreen').classList.remove('hidden');
+  state = 'dance';
+  dance = { t:0 };
+  playVN(danceScript(), ()=>{
+    // after dialogue, let the dance animation play a bit, then reveal play-again
+    setTimeout(()=>{ document.getElementById('winRetryBtn').classList.remove('hidden'); }, 3800);
+  }, 'dance');
+}
+
+function updateDance(){
+  if(!dance) return;
+  dance.t += 1/60;
+  renderDance();
+}
+
+function renderDance(){
+  const dc = document.getElementById('danceCanvas');
+  const dctx = dc.getContext('2d');
+  dctx.imageSmoothingEnabled = false;
+  const t = dance ? dance.t : 0;
+  // sun gradient background
+  const grad = dctx.createRadialGradient(140,90,10,140,90,160);
+  grad.addColorStop(0,'#fff3c4');
+  grad.addColorStop(0.5,'#ffcf5e');
+  grad.addColorStop(1,'#e88a2c');
+  dctx.fillStyle = grad;
+  dctx.fillRect(0,0,280,160);
+  // gentle rays
+  dctx.save();
+  dctx.translate(140,90);
+  dctx.rotate(t*0.15);
+  dctx.fillStyle = 'rgba(255,255,255,0.12)';
+  for(let i=0;i<8;i++){
+    dctx.rotate(Math.PI/4);
+    dctx.fillRect(-4,-160,8,320);
+  }
+  dctx.restore();
+
+  // dancing pair — swap positions in a circle, with bob
+  const cx=140, cy=120, r=26;
+  const a1 = t*1.6;
+  const a2 = a1+Math.PI;
+  const x1 = cx+Math.cos(a1)*r, y1 = cy+Math.sin(a1)*r*0.4 - Math.abs(Math.sin(t*4))*4;
+  const x2 = cx+Math.cos(a2)*r, y2 = cy+Math.sin(a2)*r*0.4 - Math.abs(Math.sin(t*4+1))*4;
+
+  const other = chosenChar==='star' ? 'moon' : 'star';
+  dctx.save(); dctx.translate(x1-12,y1-26); drawSprite(dctx, chosenChar, 24); dctx.restore();
+  dctx.save(); dctx.translate(x2-12,y2-26); drawSprite(dctx, other, 24); dctx.restore();
+
+  // Big spinning happily nearby
+  const bx = cx + Math.cos(-t*2.4)*44, by = cy+18+Math.sin(t*3)*2;
+  dctx.save(); dctx.translate(bx-12,by-22); drawSprite(dctx,'big',24); dctx.restore();
+
+  // sparkles
+  for(let i=0;i<6;i++){
+    const sa = t*2 + i*1.4;
+    const sx = cx + Math.cos(sa)*(40+10*Math.sin(t+i));
+    const sy = cy-10 + Math.sin(sa)*14;
+    dctx.fillStyle = 'rgba(255,255,255,0.8)';
+    dctx.fillRect(sx, sy, 2,2);
+  }
+}
+
+/* ======================= RENDER ======================= */
+function drawGlowRect(x,y,w,h,col,alpha=0.7,scale=3){
+  ctx.save();
+  ctx.globalAlpha = alpha*0.26;
+  ctx.fillStyle = col;
+  ctx.fillRect(x-w*(scale-1)/2, y-h*(scale-1)/2, w*scale, h*scale);
+  ctx.globalAlpha = alpha;
+  ctx.fillRect(x,y,w,h);
+  ctx.restore();
+}
+
+function drawSpriteWithShadow(key,x,y,size,sizeH){
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#02020a';
+  ctx.beginPath();
+  ctx.ellipse(x+size/2, y+(sizeH||size)+2, size*0.46, size*0.18, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.translate(x,y);
+  drawSprite(ctx, key, size, sizeH);
+  ctx.restore();
+}
+
+function renderPlanetBackdrop(p, v){
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, p.bg);
+  grad.addColorStop(0.55, '#0d0c1d');
+  grad.addColorStop(1, '#05050c');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+
+  dust.forEach((d,i)=>{
+    const g = ctx.createRadialGradient(d.x,d.y,0,d.x,d.y,d.r);
+    g.addColorStop(0, `${v.nebula}24`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  const px = W*0.72 + Math.sin(frame*0.006)*10;
+  const py = H*0.18 + Math.cos(frame*0.004)*5;
+  const pr = 58;
+  const pg = ctx.createRadialGradient(px-pr*0.28,py-pr*0.34,4,px,py,pr*1.25);
+  pg.addColorStop(0, v.band);
+  pg.addColorStop(0.35, v.glow);
+  pg.addColorStop(0.72, v.haze);
+  pg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = pg;
+  ctx.beginPath();
+  ctx.arc(px,py,pr,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = v.band;
+  ctx.lineWidth = 2;
+  for(let i=-1;i<2;i++){
+    ctx.beginPath();
+    ctx.ellipse(px, py+i*12, pr*0.74, 5, -0.18, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  if(v.rings){
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(px, py, pr*1.55, pr*0.34, -0.22, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.22;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(px, py, pr*1.9, pr*0.42, -0.22, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  if(v.storm){
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#f0a8c0';
+    ctx.beginPath();
+    ctx.ellipse(px+18, py+14, 16, 7, -0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+  if(v.aurora){
+    const aur = ctx.createLinearGradient(0,80,W,150);
+    aur.addColorStop(0,'rgba(127,216,201,0)');
+    aur.addColorStop(0.45,'rgba(127,216,160,0.24)');
+    aur.addColorStop(1,'rgba(185,166,232,0)');
+    ctx.fillStyle = aur;
+    ctx.fillRect(0,74,W,90);
+  }
+  if(v.sunward){
+    const sun = ctx.createRadialGradient(W+60, -60, 10, W+60, -60, 260);
+    sun.addColorStop(0,'rgba(255,243,196,0.8)');
+    sun.addColorStop(0.35,'rgba(232,196,104,0.22)');
+    sun.addColorStop(1,'rgba(232,196,104,0)');
+    ctx.fillStyle = sun;
+    ctx.fillRect(0,0,W,H);
+  }
+  ctx.restore();
+
+  stars.forEach(s=>{
+    const a = 0.32 + s.layer*0.38 + Math.sin(s.tw)*0.18;
+    ctx.globalAlpha = Math.max(0.14, a);
+    ctx.fillStyle = s.layer>0.72 ? v.band : '#ffffff';
+    ctx.fillRect(s.x,s.y,s.s,s.s);
+    if(s.layer>0.88) ctx.fillRect(s.x-1,s.y,s.s+2,1);
+  });
+  ctx.globalAlpha=1;
+
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = v.glow;
+  for(let y=72;y<H;y+=72){
+    ctx.beginPath();
+    ctx.moveTo(0,y + Math.sin(frame*0.012+y)*5);
+    for(let x=0;x<=W;x+=24){
+      ctx.lineTo(x, y + Math.sin(frame*0.012+x*0.04+y)*5);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function render(){
+  if(state==='dance'){ renderDance(); return; }
+  const p = PLANETS[planetIdx] || PLANETS[0];
+  const v = PLANET_VISUALS[planetIdx] || PLANET_VISUALS[0];
+  renderPlanetBackdrop(p, v);
+
+  if(state!=="playing" && state!=="vn") return;
+  if(state==="vn" && !player) return;
+
+  particles.forEach(p2=>{
+    ctx.globalAlpha = Math.max(p2.life/24,0);
+    drawGlowRect(p2.x, p2.y, 3, 3, p2.col, ctx.globalAlpha, 3.2);
+  });
+  ctx.globalAlpha=1;
+
+  enemies.forEach(e=>{
+    ctx.save();
+    ctx.globalAlpha = e.tough ? 0.22 : 0.16;
+    ctx.fillStyle = e.tough ? '#caffb0' : '#9279d6';
+    ctx.beginPath();
+    ctx.arc(e.x+8, e.y+8, e.tough ? 15 : 12, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    drawSpriteWithShadow(e.tough?'alien2':'alien1', e.x, e.y, 16);
+  });
+
+  if(boss){
+    ctx.save();
+    ctx.globalAlpha = 0.24 + Math.sin(frame*0.08)*0.06;
+    ctx.fillStyle = '#caffb0';
+    ctx.beginPath();
+    ctx.ellipse(boss.x+boss.w/2, boss.y+boss.h/2, boss.w*0.62, boss.h*0.62, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    drawSpriteWithShadow('mothership', boss.x, boss.y, boss.w, boss.h);
+    // boss hp bar
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(W/2-60, 10, 120, 8);
+    ctx.strokeStyle = 'rgba(246,234,210,0.35)';
+    ctx.strokeRect(W/2-60, 10, 120, 8);
+    ctx.fillStyle = '#caffb0';
+    ctx.fillRect(W/2-58, 12, 116*Math.max(boss.hp/boss.maxHp,0), 4);
+  }
+
+  enemyBullets.forEach(b=>{
+    drawGlowRect(b.x,b.y,b.w,b.h,b.col,0.82,3);
+  });
+
+  bullets.forEach(b=>{
+    drawGlowRect(b.x,b.y,b.w,b.h,b.col,0.92,b.isBig?4:3.5);
+  });
+
+  drawSpriteWithShadow('big', big.x, big.y, 16);
+
+  if(player.hitTimer<=0 || frame%6<3){
+    ctx.save();
+    if(shieldTimer>0){
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.15*Math.sin(frame*0.4);
+      ctx.fillStyle = '#b9a6e8';
+      ctx.beginPath();
+      ctx.arc(player.x+8, player.y+8, 14, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = '#f6ead2';
+      ctx.stroke();
+      ctx.restore();
+    }
+    if(dashTimer>0 || overdriveOn){
+      ctx.globalAlpha = 0.24;
+      ctx.fillStyle = overdriveOn ? '#f6d27a' : '#7fd8c9';
+      ctx.beginPath();
+      ctx.ellipse(player.x+8, player.y+11, 18, 8, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    drawSpriteWithShadow(chosenChar, player.x, player.y, 16);
+  }
+}
+
+function loop(){
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+/* ======================= INPUT ======================= */
+window.addEventListener('keydown', e=>{
+  if(state==='vn' && (e.key===' '||e.key==='Enter')){ vnAdvance(); e.preventDefault(); return; }
+  keys[e.key]=true;
+  if(e.key===' ') e.preventDefault();
+});
+window.addEventListener('keyup', e=>{ keys[e.key]=false; });
+
+function bindHold(id, key){
+  const el = document.getElementById(id);
+  const on = ev=>{ ev.preventDefault(); keys[key]=true; };
+  const off = ev=>{ ev.preventDefault(); keys[key]=false; };
+  el.addEventListener('touchstart', on);
+  el.addEventListener('touchend', off);
+  el.addEventListener('mousedown', on);
+  el.addEventListener('mouseup', off);
+  el.addEventListener('mouseleave', off);
+}
+bindHold('tLeft','ArrowLeft');
+bindHold('tRight','ArrowRight');
+bindHold('tUp','ArrowUp');
+bindHold('tDown','ArrowDown');
+bindHold('tFire','fire');
+
+refreshAbilityHud();
+</script>
+</body>
+</html>
